@@ -45,15 +45,15 @@ class Kalhor_SeparationIndex:
                 (data.shape[0], 1)
             self.data = data
             print('data becomes normalized')
-        self.device1 = data.device
+        self.device1 = self.data.device
         self.label_min = round(torch.min(label).detach().item())
         self.label = (label - self.label_min).to(self.device1)
         # "dis_matrix" denotes an "Euclidean" distance matrix where "kth" row denotes the distance of "kth" input data point with all n_data data points.
         self.big_number = 1e10
-        self.dis_matrix = torch.cdist(data, data, p=2).fill_diagonal_(self.big_number)
+        self.dis_matrix = torch.cdist(self.data, self.data, p=2).fill_diagonal_(self.big_number)
         self.n_class = round(torch.max(self.label).detach().item()) + 1
-        self.n_data = data.shape[0]
-        self.n_feature = data.shape[1]
+        self.n_data = self.data.shape[0]
+        self.n_feature = self.data.shape[1]
 
     # (1. si method )==========================================
     # This method measures the  separation index (si) of whole classes and  data points in a classification dataset.

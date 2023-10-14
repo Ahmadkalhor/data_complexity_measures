@@ -50,11 +50,11 @@ class Kalhor_SmoothnessIndex:
             print('target data becomes normalized')
 
         self.big_number = 1e10
-        self.n_data = inp.shape[0]
-        self.dim_input = inp.shape[1]
-        self.dim_target = target.shape[1]
-        self.dis_matrix_input = torch.cdist(inp, inp, p=2).fill_diagonal_(self.big_number)
-        dis_matrix_target = torch.cdist(target, target, p=2)
+        self.n_data = self.inp.shape[0]
+        self.dim_input = self.inp.shape[1]
+        self.dim_target = self.target.shape[1]
+        self.dis_matrix_input = torch.cdist(self.inp, self.inp, p=2).fill_diagonal_(self.big_number)
+        dis_matrix_target = torch.cdist(self.target, self.target, p=2)
         values, indices = torch.max(dis_matrix_target, 0)
         self.dis_target_max = values
         self.dis_target_mean = torch.mean(dis_matrix_target, 0)
