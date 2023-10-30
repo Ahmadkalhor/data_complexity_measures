@@ -61,7 +61,7 @@ You can use the provided code and functions to calculate Separation Index and Sm
 ## Examples
 To see how to use Separation Index and Smoothness Index in practice, refer to the Examples directory. You will find Jupyter Notebook files with step-by-step demonstrations of these measures on sample datasets.
 
-## Data
+## Data (Soon)
 Sample datasets for testing the data complexity measures are available in the data directory. You can use these datasets to experiment with the provided code and to understand how the indices work.
 
 ## Contributing
