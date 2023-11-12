@@ -1,3 +1,6 @@
+import torch
+import numpy as np
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -5,6 +8,9 @@ Created on Mon Jun 26 17:11:36 2023
 This code was written by Dr. Ahmad Kalhor (ad.kalhor@gmail.com)in pytorch framework
 It includes "Kalhor_SeparationIndex" class with 24 methods.
 """
+
+import torch
+import numpy as np
 
 # ===========Some notes about the class
 # All methods of the class are developed from the concept of Separation Index(SI).
@@ -35,6 +41,7 @@ class Kalhor_SeparationIndex:
     # One can normalize features of the data matrix by inserting "normalize=True" in the the argument of the object ("normalize=False" is default state)
     def __init__(self, data, label, normalize=False):
         # device1 = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.normalize=normalize
         if not normalize:
             self.data = data
         else:
@@ -44,6 +51,8 @@ class Kalhor_SeparationIndex:
             data = (data - mean_data.reshape([1, -1]).repeat(data.shape[0], 1)) / std_data.reshape([1, -1]).repeat \
                 (data.shape[0], 1)
             self.data = data
+            self.std_data=std_data
+            self.mean_data=mean_data
             print('data becomes normalized')
         self.device1 = self.data.device
         self.label_min = round(torch.min(label).detach().item())
@@ -87,7 +96,7 @@ class Kalhor_SeparationIndex:
     # For difficult data points si is "0"  and For easy data points si is "1"
     def si_data(self):
         values, indices = torch.min(self.dis_matrix, 1)
-        si_data = (self.label[indices, :] == self.label) * 1
+        si_data = (self.label[indices] == self.label).float()  # Use float() to get 0 and 1
         return si_data
 
     # (4. high_order_si method)==========================================
@@ -279,6 +288,9 @@ class Kalhor_SeparationIndex:
     # For when test dataset has far distribution with our train dataset cross_si is far less that si of our train dataset.
     # For when test dataset has near distribution with our train dataset cross_si is about si of our train dataset.
     def cross_si(self, data_test, label_test):
+        if self.normalize:
+            data_test = (data_test - self.mean_data.reshape([1, -1]).repeat(data_test.shape[0], 1)) / self.std_data.reshape([1, -1]).repeat \
+                (data_test.shape[0], 1)
         label_test -= label_test.min()
         n_test, n_feature = data_test.shape
         cross_dis_matrix = torch.cdist(data_test, self.data, p=2)
@@ -294,6 +306,11 @@ class Kalhor_SeparationIndex:
     # Each class, which has cross_si near the si of the same class in our train dataset, is easy to be predicted by the model which is learned by our train dataset.
 
     def cross_si_class(self, data_test, label_test):
+        if self.normalize:
+            data_test = (data_test - self.mean_data.reshape([1, -1]).repeat(data_test.shape[0], 1)) / self.std_data.reshape([1, -1]).repeat \
+                (data_test.shape[0], 1)
+
+
         label_test -= label_test.min()
         cross_dis_matrix = torch.cdist(data_test, self.data, p=2)
         values, indices = torch.min(cross_dis_matrix, 1)
@@ -310,6 +327,9 @@ class Kalhor_SeparationIndex:
     # Each data point, which has cross_si_data=0 is challenging to be predicted by the model which is learned by our train dataset.
     # Each data point, which has cross_si_data=1 is easy to be predicted by the model which is learned by our train dataset.
     def cross_si_data(self, data_test, label_test):
+        if  self.normalize:
+            data_test = (data_test - self.mean_data.reshape([1, -1]).repeat(data_test.shape[0], 1)) / self.std_data.reshape([1, -1]).repeat \
+                (data_test.shape[0], 1)
         cross_dis_matrix = torch.cdist(data_test, self.data, p=2)
         values, indices = torch.min(cross_dis_matrix, 1)
         cr_si_data = (self.label[indices, :] == label_test)
@@ -331,6 +351,9 @@ class Kalhor_SeparationIndex:
     # otherwise it assigns the negative of maximum order of anti_si.
     # (20. cross_data_score_si_anti_si method)==========================================
     def cross_data_score_si_anti_si(self, data_test, label_test):
+        if self.normalize:
+            data_test = (data_test - self.mean_data.reshape([1, -1]).repeat(data_test.shape[0], 1)) / self.std_data.reshape([1, -1]).repeat \
+            (data_test.shape[0], 1)
         label_test -= label_test.min()
         n_test, n_feature = data_test.shape
         cross_dis_matrix = torch.cdist(data_test, self.data, p=2)
@@ -428,19 +451,22 @@ class Kalhor_SeparationIndex:
         rest_features = torch.arange(self.n_feature)
         si_ranked_features = torch.zeros(self.n_feature, 1, device=self.device1)
 
-        data_3d = self.data.reshape([-1, 1, self.n_feature]).repeat([1, self.n_data, 1])
-        tr_data_3d = data_3d.transpose(0, 1)
-        distanc_3d = data_3d ** 2
-        tr_distanc_3d = distanc_3d.transpose(0, 1)
-        eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
-            [1, 1, self.n_feature])
-        dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
+        # data_3d = self.data.reshape([-1, 1, self.n_feature]).repeat([1, self.n_data, 1])
+        # tr_data_3d = data_3d.transpose(0, 1)
+        # distanc_3d = data_3d ** 2
+        # tr_distanc_3d = distanc_3d.transpose(0, 1)
+        # eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
+        #     [1, 1, self.n_feature])
+        # dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
         for k_forward in range(self.n_feature):
             si_max = 0
             for k_search in range(len(rest_features)):
                 ranked_features_search = np.append(ranked_features, rest_features[k_search])
 
-                dis_features_search = torch.sum(dis_matrix_features[:, :, ranked_features_search], 2)
+                # dis_features_search = torch.sum(dis_matrix_features[:, :, ranked_features_search], 2)
+                inp1=self.data[:,ranked_features_search]
+                dis_features_search=torch.cdist(inp1, inp1, p=2).fill_diagonal_(self.big_number)
+
                 values, indices = torch.min(dis_features_search, 1)
                 si = torch.sum(self.label[indices, :] == self.label).detach() / self.n_data
                 if si > si_max:

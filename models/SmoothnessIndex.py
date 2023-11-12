@@ -5,6 +5,8 @@ Created on Mon Jun 26 17:11:36 2023
 This code was written by Dr. Ahmad Kalhor (ad.kalhor@gmail.com)in pytorch framework
 It includes "Kalhor_SmoothnessIndex" class with 29 methods.
 """
+import torch
+import numpy as np
 # ===========Some notes about the class
 # All methods of the class are developed from the concept of Smoothness Index(SmI).
 # SmI is a normalized supervised data complexity measure which is utilised to analyze and design AI-models in Regression problems.
@@ -24,12 +26,17 @@ It includes "Kalhor_SmoothnessIndex" class with 29 methods.
 # 10-To determine a trustworthy/confidence/guarantee for the predictions of the model (High order (or soft order) SmIs are utilized) .
 # 11-To remove risky data points and augment new effective data points for better training and generalization.
 
+
+
+
 # ========================start of class=======================================
 class Kalhor_SmoothnessIndex:
     def __init__(self, inp, target, inp_normalize=False, target_normalize=False):
         self.device1 = inp.device
         target.to(self.device1)
         # --------- input normalization
+        self.inp_normalize=inp_normalize
+        self.target_normalize=target_normalize
         if not inp_normalize:
             self.inp = inp
         else:
@@ -37,6 +44,8 @@ class Kalhor_SmoothnessIndex:
             m = inp.mean(0)
             std = inp.std(0) + small_number
             self.inp = (inp - m.reshape([1, -1]).repeat(inp.shape[0], 1)) / std.reshape([1, -1]).repeat(inp.shape[0], 1)
+            self.inp_std=std
+            self.inp_m=m
             print('input data becomes normalized')
         # --------- target normalization
         if not target_normalize:
@@ -47,6 +56,8 @@ class Kalhor_SmoothnessIndex:
             std = target.std(0) + small_number
             self.target = (target - m.reshape([1, -1]).repeat(target.shape[0], 1)) / std.reshape([1, -1]).repeat(
                 target.shape[0], 1)
+            self.target_std=std
+            self.target_m=m
             print('target data becomes normalized')
 
         self.big_number = 1e10
@@ -310,6 +321,14 @@ class Kalhor_SmoothnessIndex:
 
     # (17. cross_smi_linear method)==========================================
     def cross_smi_linear(self, inp_test, target_test):
+
+        if self.inp_normalize:
+            inp_test = (inp_test - self.inp_m.reshape([1, -1]).repeat(inp_test.shape[0], 1)) / self.inp_std.reshape([1, -1]).repeat(inp_test.shape[0], 1)
+        # --------- target normalization
+        if self.target_normalize:
+            target_test = (target_test - self.target_m.reshape([1, -1]).repeat(target_test.shape[0], 1)) / self.target_std.reshape([1, -1]).repeat(
+                target_test.shape[0], 1)
+
         n_test, n_data = inp_test.shape
         dis_matrix = torch.cdist(inp_test, self.inp, p=2)
         values, indices = torch.min(dis_matrix, 1)
@@ -327,6 +346,14 @@ class Kalhor_SmoothnessIndex:
 
     # (18. cross_smi_linear_data method)==========================================
     def cross_smi_linear_data(self, inp_test, target_test):
+        if self.inp_normalize:
+            inp_test = (inp_test - self.inp_m.reshape([1, -1]).repeat(inp_test.shape[0], 1)) / self.inp_std.reshape([1, -1]).repeat(inp_test.shape[0], 1)
+        # --------- target normalization
+        if self.target_normalize:
+            target_test = (target_test - self.target_m.reshape([1, -1]).repeat(target_test.shape[0], 1)) / self.target_std.reshape([1, -1]).repeat(
+                target_test.shape[0], 1)
+
+
         dis_matrix = torch.cdist(inp_test, self.inp, p=2)
         values, indices = torch.min(dis_matrix, 1)
         dis_target_star = self.pdist(target_test, self.target[indices, :])
@@ -343,6 +370,14 @@ class Kalhor_SmoothnessIndex:
 
     # (19. cross_smi_exp method)==========================================
     def cross_smi_exp(self, inp_test, target_test, gama):
+
+        if self.inp_normalize:
+            inp_test = (inp_test - self.inp_m.reshape([1, -1]).repeat(inp_test.shape[0], 1)) / self.inp_std.reshape([1, -1]).repeat(inp_test.shape[0], 1)
+        # --------- target normalization
+        if self.target_normalize:
+            target_test = (target_test - self.target_m.reshape([1, -1]).repeat(target_test.shape[0], 1)) / self.target_std.reshape([1, -1]).repeat(
+                target_test.shape[0], 1)
+
         n_test, n_data = inp_test.shape
         dis_matrix = torch.cdist(inp_test, self.inp, p=2)
         values, indices = torch.min(dis_matrix, 1)
@@ -361,6 +396,12 @@ class Kalhor_SmoothnessIndex:
 
     # (20. cross_smi_exp_data method)==========================================
     def cross_smi_exp_data(self, inp_test, target_test, gama):
+        if self.inp_normalize:
+            inp_test = (inp_test - self.inp_m.reshape([1, -1]).repeat(inp_test.shape[0], 1)) / self.inp_std.reshape([1, -1]).repeat(inp_test.shape[0], 1)
+        # --------- target normalization
+        if self.target_normalize:
+            target_test = (target_test - self.target_m.reshape([1, -1]).repeat(target_test.shape[0], 1)) / self.target_std.reshape([1, -1]).repeat(
+                target_test.shape[0], 1)
         dis_matrix = torch.cdist(inp_test, self.inp, p=2)
         values, indices = torch.min(dis_matrix, 1)
         dis_target_star = self.pdist(target_test, self.target[indices, :])
@@ -488,18 +529,20 @@ class Kalhor_SmoothnessIndex:
         temp = torch.zeros(1, 1)
         rest_features = torch.arange(self.dim_input)
         smi_ranked_features = torch.zeros(self.dim_input, 1, device=(self.device1))
-        data_3d = self.inp.reshape([-1, 1, self.dim_input]).repeat([1, self.n_data, 1])
-        tr_data_3d = data_3d.transpose(0, 1)
-        distanc_3d = data_3d ** 2
-        tr_distanc_3d = distanc_3d.transpose(0, 1)
-        eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
-            [1, 1, self.dim_input])
-        dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
+        # data_3d = self.inp.reshape([-1, 1, self.dim_input]).repeat([1, self.n_data, 1])
+        # tr_data_3d = data_3d.transpose(0, 1)
+        # distanc_3d = data_3d ** 2
+        # tr_distanc_3d = distanc_3d.transpose(0, 1)
+        # eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
+        #     [1, 1, self.dim_input])
+        # dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
         for k_forward in range(self.dim_input):
             smi_max = 0
             for k_search in range(len(rest_features)):
                 ranked_features_search = np.append(ranked_features, rest_features[k_search])
-                dis_features_search = torch.sum(dis_matrix_features[:, :, ranked_features_search], 2)
+                # dis_features_search = torch.sum(dis_matrix_features[:, :, ranked_features_search], 2)
+                inp1=self.inp[:,ranked_features_search]
+                dis_features_search=torch.cdist(inp1, inp1, p=2).fill_diagonal_(self.big_number)
                 values, indices = torch.min(dis_features_search, 1)
 
                 dif_target = self.target - self.target[indices, :]
@@ -524,19 +567,23 @@ class Kalhor_SmoothnessIndex:
         temp = torch.zeros(1, 1)
         rest_features = torch.arange(self.dim_input)
         smi_ranked_features = torch.zeros(self.dim_input, 1, device=(self.device1))
-        data_3d = self.inp.reshape([-1, 1, self.dim_input]).repeat([1, self.n_data, 1])
-        tr_data_3d = data_3d.transpose(0, 1)
-        distanc_3d = data_3d ** 2
-        tr_distanc_3d = distanc_3d.transpose(0, 1)
-        eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
-            [1, 1, self.dim_input])
-        dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
+        # data_3d = self.inp.reshape([-1, 1, self.dim_input]).repeat([1, self.n_data, 1])
+        # tr_data_3d = data_3d.transpose(0, 1)
+        # distanc_3d = data_3d ** 2
+        # tr_distanc_3d = distanc_3d.transpose(0, 1)
+        # eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
+        #     [1, 1, self.dim_input])
+        # dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
 
         for k_forward in range(self.dim_input):
             smi_max = 0
             for k_search in range(len(rest_features)):
                 ranked_features_search = np.append(ranked_features, rest_features[k_search])
-                dis_features_search = torch.sum(dis_matrix_features[:, :, ranked_features_search], 2)
+                # dis_features_search = torch.sum(dis_matrix_features[:, :, ranked_features_search], 2)
+                inp1=self.inp[:,ranked_features_search]
+                dis_features_search=torch.cdist(inp1, inp1, p=2).fill_diagonal_(self.big_number)
+
+
                 values, indices = torch.min(dis_features_search, 1)
                 dif_target = self.target - self.target[indices, :]
                 dis_target_star = torch.sum(dif_target * dif_target, 1) ** 0.5
@@ -561,18 +608,20 @@ class Kalhor_SmoothnessIndex:
         temp = torch.zeros(1, 1)
         rest_features = torch.arange(self.dim_input)
         smi_ranked_features = torch.zeros(self.dim_input, 1, device=(self.device1))
-        data_3d = self.inp.reshape([-1, 1, self.dim_input]).repeat([1, self.n_data, 1])
-        tr_data_3d = data_3d.transpose(0, 1)
-        distanc_3d = data_3d ** 2
-        tr_distanc_3d = distanc_3d.transpose(0, 1)
-        eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
-            [1, 1, self.dim_input])
-        dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
+        # data_3d = self.inp.reshape([-1, 1, self.dim_input]).repeat([1, self.n_data, 1])
+        # tr_data_3d = data_3d.transpose(0, 1)
+        # distanc_3d = data_3d ** 2
+        # tr_distanc_3d = distanc_3d.transpose(0, 1)
+        # eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
+        #     [1, 1, self.dim_input])
+        # dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
         for k_forward in range(self.dim_input):
             smi_max = 0
             for k_search in range(len(rest_features)):
                 ranked_features_search = np.append(ranked_features, rest_features[k_search])
-                dis_features_search = torch.sum(dis_matrix_features[:, :, ranked_features_search], 2)
+                # dis_features_search = torch.sum(dis_matrix_features[:, :, ranked_features_search], 2)
+                inp1=self.inp[:,ranked_features_search]
+                dis_features_search=torch.cdist(inp1, inp1, p=2).fill_diagonal_(self.big_number)
                 values, indices = torch.min(dis_features_search, 1)
 
                 dif_target = self.target - self.target[indices, :]
@@ -602,19 +651,21 @@ class Kalhor_SmoothnessIndex:
         rest_features = torch.arange(self.dim_input)
         smi_ranked_features = torch.zeros(self.dim_input, 1, device=(self.device1))
 
-        data_3d = self.inp.reshape([-1, 1, self.dim_input]).repeat([1, self.n_data, 1])
-        tr_data_3d = data_3d.transpose(0, 1)
-        distanc_3d = data_3d ** 2
-        tr_distanc_3d = distanc_3d.transpose(0, 1)
-        eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
-            [1, 1, self.dim_input])
-        dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
+        # data_3d = self.inp.reshape([-1, 1, self.dim_input]).repeat([1, self.n_data, 1])
+        # tr_data_3d = data_3d.transpose(0, 1)
+        # distanc_3d = data_3d ** 2
+        # tr_distanc_3d = distanc_3d.transpose(0, 1)
+        # eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
+        #     [1, 1, self.dim_input])
+        # dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
 
         for k_forward in range(self.dim_input):
             smi_max = 0
             for k_search in range(len(rest_features)):
                 ranked_features_search = np.append(ranked_features, rest_features[k_search])
-                dis_features_search = torch.sum(dis_matrix_features[:, :, ranked_features_search], 2)
+                # dis_features_search = torch.sum(dis_matrix_features[:, :, ranked_features_search], 2)
+                inp1=self.inp[:,ranked_features_search]
+                dis_features_search=torch.cdist(inp1, inp1, p=2).fill_diagonal_(self.big_number)
                 values, indices = torch.min(dis_features_search, 1)
 
                 dif_target = self.target - self.target[indices, :]
