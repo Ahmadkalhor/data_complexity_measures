@@ -39,7 +39,7 @@ To get started with using the code and exploring the data complexity measures, f
 1. Clone this repository to your local machine:
 
 ```bash
-git clone https://github.com/yourusername/data-complexity-measures.git
+git clone https://github.com/Arhosseini77/data_complexity_measures
 ```
 
 
