@@ -1,7 +1,30 @@
 import torch
 
 class ARH_SeparationIndex:
-    def __init__(self, data, label, normalize=False , batch_size=1000):
+    """
+    This class provides an implementation of various Separation Index (SI) based methods
+    to analyze the separability of data points in classification problems.
+
+    The class supports calculations of the standard Separation Index, high-order Separation Index,
+    and their variants, offering insights into the complexity and characteristics of classification datasets.
+
+    Attributes:
+        data (Tensor): A tensor of shape (n_data, n_feature) representing input feature points.
+        label (Tensor): A tensor of shape (n_data, 1) representing labels of the data points.
+        normalize (bool): A flag to indicate whether the input data should be normalized.
+        batch_size (int): The size of each batch to be processed, for efficient memory usage.
+    """
+
+    def __init__(self, data, label, normalize=False, batch_size=1000):
+        """
+        Initializes the ARH_SeparationIndex object with data, labels, and optional normalization.
+
+        Args:
+            data (Tensor): Input features tensor of shape (n_data, n_feature).
+            label (Tensor): Labels tensor of shape (n_data, 1).
+            normalize (bool, optional): Whether to normalize the data. Defaults to False.
+            batch_size (int, optional): Size of batches for processing large datasets. Defaults to 1000.
+        """
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         data, label = data.to(self.device), label.to(self.device)
 
@@ -24,17 +47,48 @@ class ARH_SeparationIndex:
         self.n_feature = self.data.shape[1]
 
     def si(self):
+        """
+        Calculates the standard Separation Index (SI) for the dataset.
+
+        SI measures the proportion of data points that have their nearest neighbor
+        belonging to the same class. It is a normalized measure ranging between 0 and 1,
+        where higher values indicate better separability.
+
+        Returns:
+            float: The calculated Separation Index (SI).
+        """
         values, indices = torch.min(self.dis_matrix, 1)
         si_data = (self.label[indices] == self.label)
         si = si_data.sum().float() / self.n_data
         return si
 
     def si_data(self):
+        """
+        Calculates the Separation Index (SI) for each individual data point in the dataset.
+
+        This method provides a granular view of separability, where the SI for each point
+        is determined based on its nearest neighbor.
+
+        Returns:
+            Tensor: A tensor of shape (n_data,) containing the SI for each data point.
+        """
         values, indices = torch.min(self.dis_matrix, 1)
         si_data = (self.label[indices] == self.label).float()
         return si_data
 
     def high_order_si(self, order):
+        """
+        Calculates a high-order variant of the Separation Index (SI) for the dataset.
+
+        This method extends the concept of SI by considering the first 'order' nearest neighbors
+        for each data point and checks if they belong to the same class.
+
+        Args:
+            order (int): The number of nearest neighbors to consider.
+
+        Returns:
+            float: The calculated high-order Separation Index.
+        """
         high_si_data = torch.zeros(self.n_data, device=self.device)
         for i in range(0, self.n_data, self.batch_size):
             batch = self.data[i:i + self.batch_size]
@@ -48,6 +102,18 @@ class ARH_SeparationIndex:
         return high_si
 
     def high_order_si_data(self, order):
+        """
+        Calculates the high-order Separation Index (SI) for each data point in the dataset.
+
+        Similar to `high_order_si`, but provides the SI for each individual data point
+        based on its 'order' nearest neighbors.
+
+        Args:
+            order (int): The number of nearest neighbors to consider.
+
+        Returns:
+            Tensor: A tensor of shape (n_data,) containing the high-order SI for each data point.
+        """
         high_si_data = torch.zeros(self.n_data, device=self.device)
         for i in range(0, self.n_data, self.batch_size):
             batch = self.data[i:i + self.batch_size]
