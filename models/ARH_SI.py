@@ -124,3 +124,56 @@ class ARH_SeparationIndex:
             matches = (sorted_labels == self.label[i:i + self.batch_size].unsqueeze(1)).all(dim=2)
             high_si_data[i:i + self.batch_size] = matches.all(dim=1).float()
         return high_si_data
+
+    def anti_si(self, order):
+          """
+          Calculates the anti Separation Index (anti-SI) for the dataset.
+
+          This method evaluates how often data points have labels different from their 'order'
+          nearest neighbors, providing a normalized score between 0 and 1.
+
+          Args:
+              order (int): The number of nearest neighbors to consider.
+
+          Returns:
+              float: The calculated anti Separation Index.
+          """
+          anti_si_sum = 0
+          for i in range(0, self.n_data, self.batch_size):
+              batch = self.data[i:i + self.batch_size]
+              dis_matrix = torch.cdist(batch, self.data, p=2)
+              dis_matrix.fill_diagonal_(self.big_number)
+              _, arg_sort = torch.sort(dis_matrix, 1)
+              sorted_labels = self.label[arg_sort[:, :order]]
+              comp_label = 1 - (self.label[i:i + self.batch_size].unsqueeze(1) == sorted_labels).float()
+              anti_si_sum += comp_label.prod(2).sum().item()
+
+          anti_si = anti_si_sum / self.n_data
+          return anti_si
+    
+    def anti_si_data(self, order):
+      """
+      Calculates the anti Separation Index (anti-SI) for each data point in the dataset.
+
+      This method provides a granular view of anti-separability, where the anti-SI for each point
+      is determined based on its 'order' nearest neighbors.
+
+      Args:
+          order (int): The number of nearest neighbors to consider.
+
+      Returns:
+          Tensor: A tensor of shape (n_data,) containing the anti-SI for each data point.
+      """
+      anti_si_data = torch.zeros(self.n_data, device=self.device)
+      for i in range(0, self.n_data, self.batch_size):
+          batch = self.data[i:i + self.batch_size]
+          dis_matrix = torch.cdist(batch, self.data, p=2)
+          dis_matrix.fill_diagonal_(self.big_number)
+          _, arg_sort = torch.sort(dis_matrix, 1)
+          sorted_labels = self.label[arg_sort[:, :order]]
+          comp_label = 1 - (self.label[i:i + self.batch_size].unsqueeze(1) == sorted_labels).float()
+          anti_si_batch = comp_label.prod(2).view(-1)  # Ensure it is one-dimensional
+          batch_end = min(i + self.batch_size, self.n_data)
+          anti_si_data[i:batch_end] = anti_si_batch[:batch_end - i]
+
+      return anti_si_data
