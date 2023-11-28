@@ -42,7 +42,8 @@ class ARH_SeparationIndex:
         self.batch_size = batch_size
         self.dis_matrix = torch.cdist(self.data, self.data, p=2)
         self.dis_matrix.fill_diagonal_(self.big_number)
-        self.n_class = self.label.max().item() + 1
+        # self.n_class = self.label.max().item() + 1
+        self.n_class = int(self.label.max().item() + 1)
         self.n_data = self.data.shape[0]
         self.n_feature = self.data.shape[1]
 
@@ -177,3 +178,37 @@ class ARH_SeparationIndex:
           anti_si_data[i:batch_end] = anti_si_batch[:batch_end - i]
 
       return anti_si_data
+
+    def center_si(self):
+        """
+        Calculates the center-based Separation Index (CSI) for the dataset.
+
+        CSI is a faster computation method for datasets where each class forms a unique and normal distribution.
+        It measures the proportion of data points closest to the mean of their respective classes.
+
+        Returns:
+            float: The calculated Center-based Separation Index (CSI).
+        """
+        class_centers = torch.stack([self.data[self.label.squeeze() == cls].mean(dim=0) for cls in range(self.n_class)])
+        distances_to_centers = torch.cdist(self.data, class_centers, p=2)
+        nearest_center_labels = torch.argmin(distances_to_centers, dim=1)
+        csi = torch.sum(nearest_center_labels == self.label.squeeze()).float() / self.n_data
+
+        return csi
+
+    def center_si_data(self):
+        """
+        Calculates the center-based Separation Index (CSI) for each data point in the dataset.
+
+        This method provides an individual CSI score for each data point, indicating whether it is
+        closest to the mean of its respective class.
+
+        Returns:
+            Tensor: A tensor of shape (n_data,) containing the CSI for each data point.
+        """
+        class_centers = torch.stack([self.data[self.label.squeeze() == cls].mean(dim=0) for cls in range(self.n_class)])
+        distances_to_centers = torch.cdist(self.data, class_centers, p=2)
+        nearest_center_labels = torch.argmin(distances_to_centers, dim=1)
+        csi_data = (nearest_center_labels == self.label.squeeze()).float()
+
+        return csi_data  
