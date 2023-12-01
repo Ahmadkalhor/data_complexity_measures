@@ -94,3 +94,38 @@ class Kalhor_SeparationIndex:
                 print("CUDA out of memory. Try reducing 'order' or using a device with more memory.")
             else:
                 raise e
+
+    def soft_order_si(self, order):
+      try:
+          # Sort the distance matrix and get the indices of sorted neighbors
+          sorted_distances, neighbor_indices = torch.sort(self.dis_matrix, dim=1)
+
+          # Ensure self.label is 2D for broadcasting
+          if self.label.dim() == 1:
+              labels_reshaped = self.label.unsqueeze(1)
+          else:
+              labels_reshaped = self.label
+
+          # Expand the labels to match the number of neighbors
+          expanded_labels = labels_reshaped.expand(self.n_data, order)
+          neighbor_labels = labels_reshaped[neighbor_indices[:, :order]].view(self.n_data, order)
+
+          # Initialize the accumulator for the soft separation index
+          total_soft_si = 0
+
+          # Use tqdm for progress tracking
+          for i in tqdm(range(self.n_data), desc="Calculating Soft Order SI"):
+              # Count matching labels for the first 'order' neighbors and compute the soft score
+              matching_labels_count = (expanded_labels[i] == neighbor_labels[i]).sum()
+              total_soft_si += matching_labels_count.float() / order
+
+          # Calculate the soft separation index
+          final_soft_si = total_soft_si / self.n_data
+
+          return final_soft_si.item()
+
+      except RuntimeError as e:
+          if "out of memory" in str(e):
+              print("CUDA out of memory. Try reducing 'order' or using a device with more memory.")
+          else:
+              raise e                
