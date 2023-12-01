@@ -85,7 +85,7 @@ class ARH_SeparationIndex:
             if "out of memory" in str(e):
                 print("Insufficient CUDA memory. Consider lowering 'order' or using a device with more GPU memory.")
             else:
-                raise e
+                raise e       
 
     def anti_si(self, order):
         """
@@ -176,3 +176,55 @@ class ARH_SeparationIndex:
                 return None
             else:
                 raise e
+    def high_order_si_revised(self, order, batch_size):
+      """
+      Calculate the high order separation index for the dataset in a batched manner.
+
+      This index is a stricter version of SI, considering the first 'order' nearest neighbors.
+      It handles large datasets by processing in batches to avoid CUDA memory issues.
+
+      Args:
+          order (int): The order of separation to consider.
+          batch_size (int): The size of each batch to process.
+
+      Returns:
+          float: The calculated high order separation index.
+      """
+      try:
+          total_high_order_si = 0.0  # Initialize the high order SI accumulator
+
+          for batch_start in tqdm(range(0, self.n_data, batch_size), desc="Computing High Order SI"):
+              batch_end = min(batch_start + batch_size, self.n_data)  # Determine the batch end
+
+              # Compute the distance matrix for the current batch against all data
+              batch_distances = torch.cdist(self.data[batch_start:batch_end], self.data, p=2)
+
+              # Sort distances within the batch to get indices of the nearest neighbors
+              _, sorted_indices = torch.sort(batch_distances, dim=1)
+
+              # Get labels of the sorted nearest neighbors excluding the point itself (column at index 0)
+              batch_sorted_neighbor_labels = self.label[sorted_indices[:, 1:order+1]]
+
+              # Get the batch labels and ensure they are two-dimensional
+              batch_labels = self.label[batch_start:batch_end].unsqueeze(1)
+
+              # Compare the batch labels with their corresponding nearest neighbors
+              match_labels = batch_labels == batch_sorted_neighbor_labels
+
+              # Compute the product across the order dimension to get the match score for each point in the batch
+              match_score = match_labels.float().prod(dim=1)
+
+              # Sum up the match scores for the current batch
+              total_high_order_si += match_score.sum()
+
+          # Normalize the high order SI by the number of data points
+          final_high_si = total_high_order_si / self.n_data
+          return final_high_si.item()
+
+      except RuntimeError as e:
+          if "out of memory" in str(e):
+              # Handle CUDA out of memory error by suggesting a smaller batch size or more memory
+              print("CUDA out of memory. Try reducing 'batch_size' or using a device with more GPU memory.")
+              return None
+          else:
+              raise e
