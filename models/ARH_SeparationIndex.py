@@ -177,7 +177,7 @@ class ARH_SeparationIndex:
             else:
                 raise e
 
-    def si_revised(self, batch_size):
+    def si_batch(self, batch_size):
         """
         Calculate the separation index (SI) for the dataset in a batched manner.
         This measures the proportion of data points having the same label as their nearest neighbor.
@@ -206,7 +206,7 @@ class ARH_SeparationIndex:
             torch.cuda.empty_cache()
 
 
-    def high_order_si_revised(self, order, batch_size):
+    def high_order_si_batch(self, order, batch_size):
       """
       Calculate the high order separation index for the dataset in a batched manner.
 
@@ -262,7 +262,7 @@ class ARH_SeparationIndex:
         # Release GPU memory cache to free unused memory
         torch.cuda.empty_cache()   
 
-    def soft_order_si_revised(self, order, batch_size):
+    def soft_order_si_batch(self, order, batch_size):
         """
         Calculate the soft order separation index (Soft-SI) for the dataset in a batched manner.
         This provides a less strict measure of separation, considering matching labels among 'order' nearest neighbors.
@@ -294,7 +294,8 @@ class ARH_SeparationIndex:
         finally:
             torch.cuda.empty_cache()
 
-    def center_si_revised(self, batch_size):
+    
+    def center_si_batch(self, batch_size):
       """
       Calculates the center-based Separation Index (CSI) for the dataset in a batched manner.
       CSI measures the proportion of data points closest to the mean of their respective classes.
