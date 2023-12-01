@@ -176,6 +176,36 @@ class ARH_SeparationIndex:
                 return None
             else:
                 raise e
+
+    def si_revised(self, batch_size):
+        """
+        Calculate the separation index (SI) for the dataset in a batched manner.
+        This measures the proportion of data points having the same label as their nearest neighbor.
+        Args:
+            batch_size (int): The size of each batch to process.
+        Returns:
+            float: The calculated Separation Index (SI).
+        """
+        total_matches = 0.0
+        try:
+            for batch_start in tqdm(range(0, self.n_data, batch_size), desc="Calculating SI"):
+                batch_end = min(batch_start + batch_size, self.n_data)
+                _, nearest_neighbors_indices = torch.min(self.dis_matrix[batch_start:batch_end], dim=1)
+                batch_labels = self.label[batch_start:batch_end]
+                total_matches += (batch_labels == self.label[nearest_neighbors_indices]).float().sum()
+            
+            si = total_matches / self.n_data
+            return si.item()
+        except RuntimeError as e:
+            if "out of memory" in str(e):
+                print("CUDA out of memory. Try reducing 'batch_size'.")
+                return None
+            else:
+                raise e
+        finally:
+            torch.cuda.empty_cache()
+
+
     def high_order_si_revised(self, order, batch_size):
       """
       Calculate the high order separation index for the dataset in a batched manner.
@@ -228,3 +258,74 @@ class ARH_SeparationIndex:
               return None
           else:
               raise e
+      finally:
+        # Release GPU memory cache to free unused memory
+        torch.cuda.empty_cache()   
+
+    def soft_order_si_revised(self, order, batch_size):
+        """
+        Calculate the soft order separation index (Soft-SI) for the dataset in a batched manner.
+        This provides a less strict measure of separation, considering matching labels among 'order' nearest neighbors.
+        Args:
+            order (int): The order of separation to consider.
+            batch_size (int): The size of each batch to process.
+        Returns:
+            float: The calculated soft order separation index.
+        """
+        total_soft_scores = 0.0
+        try:
+            for batch_start in tqdm(range(0, self.n_data, batch_size), desc="Calculating Soft Order SI"):
+                batch_end = min(batch_start + batch_size, self.n_data)
+                batch_distances = torch.cdist(self.data[batch_start:batch_end], self.data, p=2)
+                _, sorted_indices = torch.sort(batch_distances, dim=1)
+                batch_labels = self.label[batch_start:batch_end].unsqueeze(1)
+                nearest_neighbor_labels = self.label[sorted_indices[:, 1:order+1]]
+                soft_scores = (batch_labels == nearest_neighbor_labels).float().sum(dim=1) / order
+                total_soft_scores += soft_scores.sum()
+            
+            soft_si = total_soft_scores / self.n_data
+            return soft_si.item()
+        except RuntimeError as e:
+            if "out of memory" in str(e):
+                print("CUDA out of memory. Try reducing 'batch_size'.")
+                return None
+            else:
+                raise e
+        finally:
+            torch.cuda.empty_cache()
+
+    def center_si_revised(self, batch_size):
+      """
+      Calculates the center-based Separation Index (CSI) for the dataset in a batched manner.
+      CSI measures the proportion of data points closest to the mean of their respective classes.
+      Args:
+          batch_size (int): The size of each batch to process.
+      Returns:
+          float: The calculated Center-based Separation Index (CSI).
+      """
+      try:
+          # Squeeze the label tensor to make it one-dimensional for indexing
+          squeezed_labels = self.label.squeeze()
+
+          # Calculate the class centers
+          class_centers = torch.stack([self.data[squeezed_labels == cls].mean(dim=0) for cls in range(self.n_class)])
+          total_center_matches = 0.0
+
+          # Batch processing for CSI calculation
+          for batch_start in tqdm(range(0, self.n_data, batch_size), desc="Calculating CSI"):
+              batch_end = min(batch_start + batch_size, self.n_data)
+              batch_distances = torch.cdist(self.data[batch_start:batch_end], class_centers, p=2)
+              nearest_center_labels = torch.argmin(batch_distances, dim=1)
+              total_center_matches += (squeezed_labels[batch_start:batch_end] == nearest_center_labels).float().sum()
+
+          # Normalize the CSI value
+          csi = total_center_matches / self.n_data
+          return csi.item()
+      except RuntimeError as e:
+          if "out of memory" in str(e):
+              print("CUDA out of memory. Try reducing 'batch_size'.")
+              return None
+          else:
+              raise e
+      finally:
+          torch.cuda.empty_cache()
