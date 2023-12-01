@@ -61,3 +61,36 @@ class Kalhor_SeparationIndex:
                 print("Insufficient CUDA memory. Consider lowering 'order' or using a device with more GPU memory.")
             else:
                 raise e
+
+    def anti_si(self, order):
+        try:
+            # Sort the distance matrix and get the indices of sorted neighbors
+            sorted_dist, sorted_indices = torch.sort(self.dis_matrix, dim=1)
+
+            # Ensure self.label is a 2D tensor [n_data, 1]
+            if self.label.dim() == 1:
+                labels = self.label.unsqueeze(1)
+            else:
+                labels = self.label
+
+            expanded_labels = labels.expand(self.n_data, order)
+            nearest_neighbor_labels = labels[sorted_indices[:, :order]].view(self.n_data, order)
+
+            # Initialize the accumulator for the anti separation index
+            total_anti_si = 0
+
+            for i in tqdm(range(self.n_data), desc="Calculating Anti-SI"):
+                # Compute the difference in labels for the first 'order' neighbors
+                label_difference = 1 - (expanded_labels[i] == nearest_neighbor_labels[i]).float()
+                total_anti_si += torch.prod(label_difference)
+
+            # Calculate the anti separation index
+            final_anti_si = total_anti_si / self.n_data
+
+            return final_anti_si.item()
+
+        except RuntimeError as e:
+            if "out of memory" in str(e):
+                print("CUDA out of memory. Try reducing 'order' or using a device with more memory.")
+            else:
+                raise e
