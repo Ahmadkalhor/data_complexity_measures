@@ -1,7 +1,7 @@
 import torch
 from tqdm import tqdm
 
-class Kalhor_SeparationIndex:
+class ARH_SeparationIndex:
     def __init__(self, data, label, normalize=False):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.normalize = normalize
@@ -128,4 +128,39 @@ class Kalhor_SeparationIndex:
           if "out of memory" in str(e):
               print("CUDA out of memory. Try reducing 'order' or using a device with more memory.")
           else:
-              raise e                
+              raise e 
+    def center_si(self):
+        """
+        Calculates the center-based Separation Index (CSI) for the dataset.
+
+        CSI is a faster computation method for datasets where each class forms a unique and normal distribution.
+        It measures the proportion of data points closest to the mean of their respective classes.
+
+        Returns:
+            float: The calculated Center-based Separation Index (CSI).
+        """
+        try:
+            # Calculate class centers with a progress bar
+            class_centers = torch.stack([
+                self.data[self.label.squeeze() == cls].mean(dim=0)
+                for cls in tqdm(range(self.n_class), desc="Calculating Class Centers")
+            ])
+
+            # Compute distances from each data point to the class centers
+            distances_to_centers = torch.cdist(self.data, class_centers, p=2)
+
+            # Identify the nearest center for each data point
+            nearest_center_labels = torch.argmin(distances_to_centers, dim=1)
+
+            # Calculate the CSI
+            csi = torch.sum(nearest_center_labels == self.label.squeeze()).float() / self.n_data
+
+            return csi.item()
+
+        except RuntimeError as e:
+            if "out of memory" in str(e):
+                print("CUDA out of memory. Try reducing the dataset size or using a device with more GPU memory.")
+                return None
+            else:
+                raise e
+            
