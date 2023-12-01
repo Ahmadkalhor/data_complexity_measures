@@ -34,7 +34,7 @@ class Kalhor_SeparationIndex:
       si = si_sum / self.n_data
       return si
 
-    def compute_high_order_si(self, order):
+    def high_order_si(self, order):
         try:
             # Sort the distance matrix and get sorted indices
             sorted_distances, sorted_indices = torch.sort(self.dis_matrix, 1)
