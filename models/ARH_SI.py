@@ -1,1 +1,0 @@
-check ARH_SeparationIndex
