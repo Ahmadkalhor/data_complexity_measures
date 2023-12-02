@@ -3,8 +3,9 @@
 
 
 <div align="center">
-<img align="center" src="images/logo.png" alt="Logo" width = 640px height = 600px>
+  <img align="center" src="images/logo.png" alt="Logo" width="320px" height="300px">
 </div>
+
 
 This repository contains code, examples, and datasets related to data complexity measures, specifically focusing on the following two indices:
 
