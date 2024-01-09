@@ -333,27 +333,41 @@ class ARH_SeparationIndex:
           torch.cuda.empty_cache()
 
     def forward_feature_ranking_si(self):
-        ranked_features = torch.zeros(1, 0)
-        temp = torch.zeros(1, 1)
-        rest_features = torch.arange(self.n_feature)
-        si_ranked_features = torch.zeros(self.n_feature, 1, device=self.device)
-        print("start forward-Selection")
-        
+        ranked_features = torch.tensor([], dtype=torch.long, device=self.device)
+        rest_features = torch.arange(self.n_feature, device=self.device)
+        si_ranked_features = torch.zeros(self.n_feature, device=self.device)
+
+        # Precompute the full distance matrix for all features
+        full_dis_matrix = torch.cdist(self.data, self.data, p=2)
+        full_dis_matrix.fill_diagonal_(self.big_number)
+
+        print("Start forward selection")
+
         for k_forward in tqdm(range(self.n_feature)):
             si_max = 0
-            for k_search in range(len(rest_features)):
-                ranked_features_search = np.append(ranked_features, rest_features[k_search])
-                inp1=self.data[:,ranked_features_search]
-                dis_features_search=torch.cdist(inp1, inp1, p=2).fill_diagonal_(self.big_number)
+            chosen_feature = None
 
-                values, indices = torch.min(dis_features_search, 1)
-                si = torch.sum(self.label[indices, :] == self.label).detach() / self.n_data
+            for k_search in range(len(rest_features)):
+                current_feature = rest_features[k_search]
+                if k_forward == 0:
+                    # Use the precomputed distance matrix for the first feature
+                    dis_matrix = full_dis_matrix[:, current_feature].unsqueeze(1)
+                else:
+                    # Use a subset of the precomputed distance matrix for subsequent features
+                    features_to_use = torch.cat((ranked_features, current_feature.unsqueeze(0)))
+                    dis_matrix = full_dis_matrix[:, features_to_use]
+
+                # Compute minimum distances and their indices
+                values, indices = torch.min(dis_matrix, dim=1)
+                si = (self.label[indices] == self.label).float().mean()
+
                 if si > si_max:
                     si_max = si
-                    chosen_feature = rest_features[k_search]
-                    k_search_chosen = k_search
-            temp[:, 0] = chosen_feature.detach()
-            ranked_features = torch.cat((ranked_features, temp), 1)
-            rest_features = torch.cat([rest_features[:k_search_chosen], rest_features[k_search_chosen + 1:]])
-            si_ranked_features[k_forward, 0] = si_max
+                    chosen_feature = current_feature
+
+            ranked_features = torch.cat((ranked_features, chosen_feature.unsqueeze(0)))
+            rest_features = rest_features[rest_features != chosen_feature]
+            si_ranked_features[k_forward] = si_max
+
         return si_ranked_features, ranked_features
+
