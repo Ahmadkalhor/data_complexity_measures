@@ -1,5 +1,6 @@
 import torch
 from tqdm import tqdm
+import numpy as np
 
 class ARH_SeparationIndex:
     def __init__(self, data, label, normalize=False):
@@ -335,7 +336,7 @@ class ARH_SeparationIndex:
         ranked_features = torch.zeros(1, 0)
         temp = torch.zeros(1, 1)
         rest_features = torch.arange(self.n_feature)
-        si_ranked_features = torch.zeros(self.n_feature, 1, device=self.device1)
+        si_ranked_features = torch.zeros(self.n_feature, 1, device=self.device)
         print("start forward-Selection")
         
         for k_forward in tqdm(range(self.n_feature)):
