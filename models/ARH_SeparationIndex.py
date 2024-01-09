@@ -330,3 +330,29 @@ class ARH_SeparationIndex:
               raise e
       finally:
           torch.cuda.empty_cache()
+
+    def forward_feature_ranking_si(self):
+        ranked_features = torch.zeros(1, 0)
+        temp = torch.zeros(1, 1)
+        rest_features = torch.arange(self.n_feature)
+        si_ranked_features = torch.zeros(self.n_feature, 1, device=self.device1)
+        print("start forward-Selection")
+        
+        for k_forward in tqdm(range(self.n_feature)):
+            si_max = 0
+            for k_search in range(len(rest_features)):
+                ranked_features_search = np.append(ranked_features, rest_features[k_search])
+                inp1=self.data[:,ranked_features_search]
+                dis_features_search=torch.cdist(inp1, inp1, p=2).fill_diagonal_(self.big_number)
+
+                values, indices = torch.min(dis_features_search, 1)
+                si = torch.sum(self.label[indices, :] == self.label).detach() / self.n_data
+                if si > si_max:
+                    si_max = si
+                    chosen_feature = rest_features[k_search]
+                    k_search_chosen = k_search
+            temp[:, 0] = chosen_feature.detach()
+            ranked_features = torch.cat((ranked_features, temp), 1)
+            rest_features = torch.cat([rest_features[:k_search_chosen], rest_features[k_search_chosen + 1:]])
+            si_ranked_features[k_forward, 0] = si_max
+        return si_ranked_features, ranked_features
