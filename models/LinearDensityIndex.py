@@ -15,6 +15,11 @@ It includes "Kalhor_LinearDensityIndex" class with 4 methods.
 # 3- Using a few shot labeled data, To label unsupervised data
 
 
+import torch 
+import numpy as np 
+from tqdm import tqdm
+
+
 # ========================start of class=======================================
 class Kalhor_LinearDensityIndex:
     def __init__(self, data, normalize=False):
@@ -26,7 +31,7 @@ class Kalhor_LinearDensityIndex:
             small_number = 1e-10
             m = data.mean(0)
             std = data.std(0) + small_number
-            self.inp = (data - m.reshape([1, -1]).repeat(inp.shape[0], 1)) / std.reshape([1, -1]).repeat(inp.shape[0], 1)
+            self.data = (data - m.reshape([1, -1]).repeat(data.shape[0], 1)) / std.reshape([1, -1]).repeat(data.shape[0], 1)
             print('data becomes normalized')
         # --------- target normalization
         self.big_number = 1e10
@@ -36,7 +41,7 @@ class Kalhor_LinearDensityIndex:
         self.pdist = torch.nn.PairwiseDistance(p=2)
 
     # (1. ldi_clustering method)==========================================
-    def ldi_clustering(self, n_cluster_max,kmeans_repeat):
+    def ldi_clustering(self, n_cluster_max,kmeans_repeat,dim_data):
         def get_param( label_data, k_cluster):
             value, indices=((label_data==k_cluster)*1).sort()
             inp=self.data[indices[value.argmax(0):],:]
@@ -76,7 +81,7 @@ class Kalhor_LinearDensityIndex:
         label_data_best=label_data
         center_clusters_best=center_clusters[0:n_cluster,:]
         n_cluster_best=n_cluster
-        for k_cluster in range(n_cluster_max):
+        for k_cluster in tqdm(range(n_cluster_max)):
             n_cluster=k_cluster+1
             #Find the worst cluster
             vmax, k_worst=div_score.max(0)

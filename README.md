@@ -3,8 +3,9 @@
 
 
 <div align="center">
-<img align="center" src="images/logo.png" alt="Logo" width = 640px height = 600px>
+  <img align="center" src="images/logo.png" alt="Logo" width="320px" height="300px">
 </div>
+
 
 This repository contains code, examples, and datasets related to data complexity measures, specifically focusing on the following two indices:
 
@@ -39,7 +40,7 @@ To get started with using the code and exploring the data complexity measures, f
 1. Clone this repository to your local machine:
 
 ```bash
-git clone https://github.com/yourusername/data-complexity-measures.git
+git clone https://github.com/Arhosseini77/data_complexity_measures
 ```
 
 

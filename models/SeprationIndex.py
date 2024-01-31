@@ -1,6 +1,3 @@
-import torch
-import numpy as np
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -11,6 +8,7 @@ It includes "Kalhor_SeparationIndex" class with 24 methods.
 
 import torch
 import numpy as np
+from tqdm import tqdm
 
 # ===========Some notes about the class
 # All methods of the class are developed from the concept of Separation Index(SI).
@@ -450,7 +448,7 @@ class Kalhor_SeparationIndex:
         temp = torch.zeros(1, 1)
         rest_features = torch.arange(self.n_feature)
         si_ranked_features = torch.zeros(self.n_feature, 1, device=self.device1)
-
+        print("start forward-Selection")
         # data_3d = self.data.reshape([-1, 1, self.n_feature]).repeat([1, self.n_data, 1])
         # tr_data_3d = data_3d.transpose(0, 1)
         # distanc_3d = data_3d ** 2
@@ -458,7 +456,7 @@ class Kalhor_SeparationIndex:
         # eye_3d = torch.eye(self.n_data, device=self.device1).reshape([self.n_data, self.n_data, 1]).repeat(
         #     [1, 1, self.n_feature])
         # dis_matrix_features = eye_3d * self.big_number + distanc_3d + tr_distanc_3d - 2 * (data_3d * tr_data_3d)
-        for k_forward in range(self.n_feature):
+        for k_forward in tqdm(range(self.n_feature)):
             si_max = 0
             for k_search in range(len(rest_features)):
                 ranked_features_search = np.append(ranked_features, rest_features[k_search])
